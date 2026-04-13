@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinikAI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div id="preloader">
+        <div class="loader-content">
+            <div class="spinner-large"></div>
+            <p id="loading-tip">FinikAI подгружает харизму...</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <aside class="sidebar">
+            <h2 class="logo">FinikAI</h2>
+            
+            <div class="nav-tabs">
+                <button onclick="showTab('chat')" class="tab-btn active" id="tab-chat-btn">Чат</button>
+                <button onclick="showTab('settings')" class="tab-btn" id="tab-set-btn">Настройки</button>
+            </div>
+
+            <div id="chat-tab">
+                <button id="new-chat" onclick="setRole('finik')">+ Новый чат</button>
+                
+                <div class="roles-toggle" onclick="toggleRoles()">
+                    <span id="label-roles">🎭 Ролевые разговоры</span>
+                    <span id="toggle-arrow">▼</span>
+                </div>
+
+                <div id="roles-container" style="display: none;">
+                    <div class="roles-grid">
+                        <button class="role-btn" onclick="setRole('pomni')"><img src="/icons/pom.png"><span>Pomni</span></button>
+                        <button class="role-btn" onclick="setRole('jax')"><img src="/icons/jax.png"><span>Jax</span></button>
+                        <button class="role-btn" onclick="setRole('spongebob')"><img src="/icons/bob.png"><span>Bob</span></button>
+                        <button class="role-btn" onclick="setRole('patrick')"><img src="/icons/pat.png"><span>Pat</span></button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="settings-tab" style="display: none;">
+                <div class="setting-item">
+                    <label id="label-lang" for="lang-select">Язык:</label>
+                    <select id="lang-select" onchange="changeLanguage()">
+                        <option value="ru">🇷🇺 Русский</option>
+                        <option value="en">🇺🇸 English</option>
+                        <option value="uz">🇺🇿 O'zbek</option>
+                        <option value="kk">🇰🇿 Қазақша</option>
+                        <option value="be">🇧🇾 Беларуская</option>
+                    </select>
+                </div>
+                <div class="info-box">
+                    <p>Создатель: <b>Finikodel</b></p>
+                    <p>Страна: 🇷🇺 Россия</p>
+                </div>
+            </div>
+        </aside>
+
+        <main class="chat-window">
+            <div id="messages"></div>
+            
+            <div id="ai-loading" style="display: none; padding: 0 40px 10px;">
+                <div class="ai-msg-container">
+                    <div class="ai-avatar"></div>
+                    <div class="message ai">FinikAI печатает...</div>
+                </div>
+            </div>
+            
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <div class="input-area">
+                        <label for="file-input" class="file-label" title="Прикрепить файл">📎</label>
+                        <input type="file" id="file-input" style="display:none" onchange="showFileName()">
+                        
+                        <input type="text" id="user-query" placeholder="Спроси у FinikAI..." onkeydown="if(event.key==='Enter') handleAction()">
+                        
+                        <button id="action-btn" class="send-mode" onclick="handleAction()">
+                            <div id="btn-icon"></div>
+                        </button>
+                    </div>
+                    <div id="file-status" style="font-size: 11px; color: #4caf50; margin: 5px 0 0 45px; height: 14px;"></div>
+                    
+                    <p class="disclaimer">FinikAI - это ИИ. Он может вам жёстко врать, и быть воздуханом, проверяйте инфу!</p>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
