@@ -1,87 +1,61 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory
-import g4f
 import os
+from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
+import google.generativeai as genai
 
 app = Flask(__name__)
+CORS(app)
 
-# 1. МАРШРУТ ДЛЯ АВАТАРКИ (ico.jpg)
-@app.route('/avatar')
-def get_avatar():
-    # Ищем файл ico.jpg в корневой папке проекта
-    return send_from_directory(app.root_path, 'ico.jpg')
+# --- НАСТРОЙКА ИИ ---
+# Рекомендую на Vercel добавить ключ в Environment Variables под именем GOOGLE_API_KEY
+# Но для теста можно оставить так (хотя это небезопасно)
+API_KEY = os.environ.get("GOOGLE_API_KEY", "AIzaSyBkdfyrFv3-j1L2aojIxEKmeNHpDuARzHo")
+genai.configure(api_key=API_KEY)
 
-# 2. МАРШРУТ ДЛЯ ИКОНОК РОЛЕЙ
-@app.route('/icons/<path:filename>')
-def custom_static(filename):
-    return send_from_directory(os.path.join(app.root_path, 'icons'), filename)
+# ТУТ ЗАДАЕТСЯ РОЛЬ (System Instruction)
+SYSTEM_PROMPT = """
+Ты — FinikAI, продвинутый и дружелюбный ИИ-помощник, созданный разработчиком Finikodel. 
+Твой характер: умный, немного ироничный, но всегда готовый помочь. 
+Ты любишь тему анимации, веб-разработки (особенно HTML5) и игр.
+Важно: Если тебя спрашивают про персонажей, используй такие имена: Pomni, Jax, SpongeBob, Patrick.
+Отвечай всегда на том языке, на котором к тебе обратились.
+"""
 
-# 3. ГЛАВНАЯ СТРАНИЦА
+# Инициализация модели с ролью
+model = genai.GenerativeModel(
+    model_name='gemini-1.5-flash',
+    system_instruction=SYSTEM_PROMPT
+)
+
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return "FinikAI Server is Running!"
 
-# 4. ЛОГИКА ОБРАБОТКИ ЗАПРОСОВ
 @app.route('/ask', methods=['POST'])
 def ask():
-    user_data = request.json
-    user_input = user_data.get("message")
-    lang = user_data.get("lang", "ru")
-    role = user_data.get("role", "finik")
-
-    if not user_input:
-        return jsonify({"answer": "..."})
-
-    # --- НАСТРОЙКА РОЛЕЙ (Краткость + Характер) ---
-    # Мы добавляем требование "BE VERY BRIEF" для скорости и стиля
-    prompts = {
-        "finik": f"You are FinikAI. Answer strictly in {lang}. Be charismatic, witty, use irony/dark humor like 4chan/Reddit. BE CONCISE.",
-        "pomni": f"You are Pomni. Answer in {lang}. BE VERY BRIEF. You are anxious, paranoid, and confused. Use short, shaky sentences.",
-        "jax": f"You are Jax. Answer in {lang}. BE VERY BRIEF. You are a cynical prankster, mean-spirited but funny. Short insults only.",
-        "spongebob": f"You are SpongeBob. Answer in {lang}. BE VERY BRIEF. Extremely energetic and happy. Short 'I'm ready!' style.",
-        "patrick": f"You are Patrick Star. Answer in {lang}. BE VERY BRIEF. Extremely slow and confused. Use 3-5 words maximum."
-    }
-
-    system_prompt = prompts.get(role, prompts["finik"])
-
     try:
-        # Пытаемся получить ответ через быстрый Blackbox
-        response = g4f.ChatCompletion.create(
-            model=g4f.models.gpt_4,
-            provider=g4f.Provider.Blackbox,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_input}
-            ],
-            timeout=10 # Ограничиваем время ожидания для скорости
-        )
+        data = request.json
+        user_message = data.get("message")
+        chat_history = data.get("history", []) # Если захочешь добавить память чата позже
+
+        if not user_message:
+            return jsonify({"error": "No message provided"}), 400
+
+        # Генерация ответа с учетом роли
+        # Мы используем start_chat для возможности ведения диалога в будущем
+        chat = model.start_chat(history=[])
+        response = chat.send_message(user_message)
         
-        if not response:
-            raise Exception("Empty")
+        return jsonify({
+            "answer": response.text,
+            "status": "success"
+        })
 
-        return jsonify({"answer": response})
+    except Exception as e:
+        print(f"Ошибка сервера: {e}")
+        return jsonify({"error": str(e)}), 500
 
-    except Exception:
-        # Авто-фоллбэк на любого рабочего провайдера, если первый упал
-        try:
-            response = g4f.ChatCompletion.create(
-                model=g4f.models.default,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_input}
-                ]
-            )
-            return jsonify({"answer": response})
-        except Exception as final_e:
-            # Локализованные ошибки
-            err_msgs = {
-                "ru": "Ошибка связи. Проверь интернет или VPN.",
-                "en": "Connection error. Check internet or VPN.",
-                "uz": "Aloqa xatosi. Internet yoki VPN-ni tekshiring.",
-                "kk": "Байланыс қатесі. Интернетті немесе VPN-ді тексеріңіз.",
-                "be": "Памылка сувязі. Праверце інтэрнэт ці VPN."
-            }
-            return jsonify({"answer": err_msgs.get(lang, err_msgs["ru"])})
-
-if __name__ == '__main__':
-    # Запуск сервера
-    app.run(debug=True)
+if __name__ == "__main__":
+    # На Vercel порт выбирается автоматически
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
