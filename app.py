@@ -1,14 +1,10 @@
 import os
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from flask_cors import CORS
-import google.generativeai as genai
+from duckduckgo_search import DDGS
 
 app = Flask(__name__)
 CORS(app)
-
-# Используем твою переменную из Vercel
-API_KEY = os.environ.get("GOOGLE_API_KEY")
-genai.configure(api_key=API_KEY)
 
 @app.route('/avatar')
 def get_avatar():
@@ -32,35 +28,26 @@ def ask():
     if not user_input:
         return jsonify({"answer": "..."})
 
+    # Твои любимые роли (передаем их как инструкцию в начале сообщения)
     prompts = {
-        "finik": f"You are FinikAI. Answer in {lang}. Be witty, ironic, Reddit style. Use Markdown.",
-        "pomni": f"You are Pomni. Answer in {lang}. Anxious, paranoid. SHORT.",
-        "jax": f"You are Jax. Answer in {lang}. Mean, cynical prankster. BRIEF.",
-        "spongebob": f"You are SpongeBob. Answer in {lang}. Energetic. SHORT.",
-        "patrick": f"You are Patrick. Answer in {lang}. Confused. Max 5 words."
+        "finik": f"Instruction: You are FinikAI. Respond in {lang}. Be witty, ironic, Reddit style. Russian style and a lot of memes. Use Markdown. Text: ",
+        "pomni": f"Instruction: You are Pomni. Respond in {lang}. Anxious, paranoid. SHORT sentences. Text: ",
+        "jax": f"Instruction: You are Jax. Respond in {lang}. Mean, cynical prankster. VERY BRIEF. Text: ",
+        "spongebob": f"Instruction: You are SpongeBob. Respond in {lang}. Energetic, silly, very funny. SHORT. Text: ",
+        "patrick": f"Instruction: You are Patrick. Talk silly and be very stupid. Respond in {lang}. Confused, slow, stupid, funny. Max 5 words. Text: "
     }
-    system_prompt = prompts.get(role, prompts["finik"])
+    
+    system_instruction = prompts.get(role, prompts["finik"])
 
     try:
-        # ШАГ 1: Автоматически находим первую доступную модель для генерации текста
-        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        if not available_models:
-            return jsonify({"answer": "Ошибка: В вашем аккаунте нет доступных моделей Gemini."})
-        
-        # Берем самую свежую из списка (обычно последняя или первая)
-        target_model = available_models[0] 
-
-        # ШАГ 2: Запуск
-        model = genai.GenerativeModel(
-            model_name=target_model,
-            system_instruction=system_prompt
-        )
-
-        response = model.generate_content(user_input)
-        return jsonify({"answer": response.text})
-        
+        # Используем DuckDuckGo AI. Модель 'gpt-4o-mini' обычно самая быстрая и умная.
+        with DDGS() as ddgs:
+            full_prompt = system_instruction + user_input
+            results = ddgs.chat(full_prompt, model='gpt-4o-mini')
+            return jsonify({"answer": results})
+            
     except Exception as e:
-        return jsonify({"answer": f"Ошибка системы: {str(e)}"})
+        return jsonify({"answer": f"Ошибка связи: Попробуй еще раз через секунду. ({str(e)})"})
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
