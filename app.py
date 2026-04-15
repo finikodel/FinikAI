@@ -6,7 +6,7 @@ import google.generativeai as genai
 app = Flask(__name__)
 CORS(app)
 
-# 1. Берем ключ именно по твоему названию из Vercel
+# Используем твою переменную из Vercel
 API_KEY = os.environ.get("GOOGLE_API_KEY")
 genai.configure(api_key=API_KEY)
 
@@ -24,7 +24,6 @@ def index():
 
 @app.route('/ask', methods=['POST'])
 def ask():
-    # Получаем данные (поддержка и JSON, и Form для твоего старого скрипта)
     data = request.get_json(silent=True) or {}
     user_input = data.get("message") or request.form.get("message")
     lang = data.get("lang") or request.form.get("lang", "ru")
@@ -33,21 +32,27 @@ def ask():
     if not user_input:
         return jsonify({"answer": "..."})
 
-    # Описания ролей (твои любимые персонажи)
     prompts = {
         "finik": f"You are FinikAI. Answer in {lang}. Be witty, ironic, Reddit style. Use Markdown.",
-        "pomni": f"You are Pomni. Answer in {lang}. Anxious, paranoid. SHORT sentences.",
-        "jax": f"You are Jax. Answer in {lang}. Mean, cynical prankster. VERY BRIEF.",
-        "spongebob": f"You are SpongeBob. Answer in {lang}. Energetic, naive. SHORT.",
-        "patrick": f"You are Patrick. Answer in {lang}. Confused, slow. Max 5 words."
+        "pomni": f"You are Pomni. Answer in {lang}. Anxious, paranoid. SHORT.",
+        "jax": f"You are Jax. Answer in {lang}. Mean, cynical prankster. BRIEF.",
+        "spongebob": f"You are SpongeBob. Answer in {lang}. Energetic. SHORT.",
+        "patrick": f"You are Patrick. Answer in {lang}. Confused. Max 5 words."
     }
-    
     system_prompt = prompts.get(role, prompts["finik"])
 
     try:
-        # 2. Используем актуальную модель Gemini 3 Flash
+        # ШАГ 1: Автоматически находим первую доступную модель для генерации текста
+        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        if not available_models:
+            return jsonify({"answer": "Ошибка: В вашем аккаунте нет доступных моделей Gemini."})
+        
+        # Берем самую свежую из списка (обычно последняя или первая)
+        target_model = available_models[0] 
+
+        # ШАГ 2: Запуск
         model = genai.GenerativeModel(
-            model_name='gemini-3-flash',
+            model_name=target_model,
             system_instruction=system_prompt
         )
 
@@ -55,7 +60,6 @@ def ask():
         return jsonify({"answer": response.text})
         
     except Exception as e:
-        # Если модель не найдена или ключ не подхватился, выводим понятную ошибку
         return jsonify({"answer": f"Ошибка системы: {str(e)}"})
 
 if __name__ == '__main__':
