@@ -6,9 +6,21 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# Используем стабильную модель 2026 года
+# Настройка модели 2.5 Pro (актуальная стабильная в 2026)
 genai.configure(api_key=os.environ.get("GOOGLE_API_KEY"))
-model = genai.GenerativeModel('gemini-2.5-pro')
+
+# Отключаем фильтры безопасности, чтобы точки не заменяли ответ
+safety_settings = [
+    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+]
+
+model = genai.GenerativeModel(
+    model_name='gemini-2.5-pro',
+    safety_settings=safety_settings
+)
 
 @app.route('/ask', methods=['POST'])
 def ask():
@@ -17,34 +29,41 @@ def ask():
     lang = "Russian" if (data.get("lang") or "ru") == "ru" else "English"
     role = data.get("role") or "finik"
 
-    if not user_input: return jsonify({"answer": "..."})
+    if not user_input:
+        return jsonify({"answer": "А говорить кто будет?"})
 
-    # Улучшенные каноничные роли
+    # Персонажи: Губка Боб и Патрик теперь официально в ударе
     role_instructions = {
-        "finik": "Ты — ФиникAI, остроумный и ироничный ассистент. Стиль: Reddit.",
-        "pomni": "Ты — Помни. У тебя паническая атака, ты в ужасе. Короткие фразы.",
-        "jax": "Ты — Джекс. Циничный шутник, обожаешь подкалывать. Кратко и зло.",
-        "spongebob": "Ты — Губка Боб Квадратные Штаны! Ты ГИПЕР-энергичный, безумно оптимистичный и очень наивный/глупенький. Ты постоянно смеешься 'А-ха-ха-ха!'.",
-        "patrick": "Ты — Патрик Стар. Ты ОЧЕНЬ тупой. Ты медленно соображаешь и говоришь невпопад. МАКСИМУМ 5 СЛОВ в ответе. Пиши чепуху."
+        "finik": "Ты — ФиникAI, ироничный ассистент. Стиль: Reddit.",
+        "pomni": "Ты — Помни. У тебя паника, ты в Цифровом Цирке. Трясущиеся короткие фразы.",
+        "jax": "Ты — Джекс. Циничный кролик-тролль. Короткие издевки.",
+        "spongebob": "Ты — Губка Боб! Ты ГИПЕР-энергичный, безумно добрый, но очень глупенький и наивный. Смейся 'А-ха-ха-ха!' в конце каждой фразы.",
+        "patrick": "Ты — Патрик Стар. Ты ОЧЕНЬ ТУПОЙ. Твои мысли текут как улитка. Максимум 5 слов. Пиши полную чепуху невпопад."
     }
     
     selected_role = role_instructions.get(role, role_instructions["finik"])
-    
-    # Инструкция для ИИ
-    full_prompt = f"STRICT: Answer ONLY in {lang}. Role context: {selected_role}. User query: {user_input}"
+    full_prompt = f"STRICT: Answer ONLY in {lang}. Role context: {selected_role}. User: {user_input}"
 
     try:
         response = model.generate_content(full_prompt)
-        return jsonify({"answer": response.text if response.text else "..."})
+        
+        # Если текст есть — возвращаем, если нет — пишем причину, а не точки
+        if response.text:
+            return jsonify({"answer": response.text})
+        else:
+            return jsonify({"answer": "Google заблокировал ответ. Попробуй перефразировать!"})
+            
     except Exception as e:
-        # Если API выдаст ошибку, мы увидим её в чате
         return jsonify({"answer": f"Ошибка (Gemini 2.5): {str(e)}"})
 
 @app.route('/')
-def index(): return render_template('index.html')
+def index():
+    return render_template('index.html')
 
 @app.route('/avatar')
-def get_avatar(): return send_from_directory(app.root_path, 'ico.jpg')
+def get_avatar():
+    return send_from_directory(app.root_path, 'ico.jpg')
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
