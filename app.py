@@ -6,9 +6,9 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-# Используем 1.0-pro, она не выдает 404
+# Используем стабильную модель 2026 года
 genai.configure(api_key=os.environ.get("GOOGLE_API_KEY"))
-model = genai.GenerativeModel('gemini-1.0-pro')
+model = genai.GenerativeModel('gemini-2.5-pro')
 
 @app.route('/ask', methods=['POST'])
 def ask():
@@ -19,29 +19,32 @@ def ask():
 
     if not user_input: return jsonify({"answer": "..."})
 
-    # Персонажи по твоей просьбе
+    # Улучшенные каноничные роли
     role_instructions = {
-        "finik": "You are FinikAI, a witty assistant. Style: Reddit.",
-        "pomni": "You are Pomni. Extremely anxious and paranoid.",
-        "jax": "You are Jax. Cynical, mean prankster.",
-        "spongebob": "Ты — Губка Боб. Ты очень энергичный, добрый, но немножко глупенький и наивный. Ты постоянно смеешься! Отвечай весело и просто.",
-        "patrick": "Ты — Патрик Стар. Ты ОЧЕНЬ тупой и смешной. Твои мысли путаются. Максимум 5 слов в ответе. Говори глупости."
+        "finik": "Ты — ФиникAI, остроумный и ироничный ассистент. Стиль: Reddit.",
+        "pomni": "Ты — Помни. У тебя паническая атака, ты в ужасе. Короткие фразы.",
+        "jax": "Ты — Джекс. Циничный шутник, обожаешь подкалывать. Кратко и зло.",
+        "spongebob": "Ты — Губка Боб Квадратные Штаны! Ты ГИПЕР-энергичный, безумно оптимистичный и очень наивный/глупенький. Ты постоянно смеешься 'А-ха-ха-ха!'.",
+        "patrick": "Ты — Патрик Стар. Ты ОЧЕНЬ тупой. Ты медленно соображаешь и говоришь невпопад. МАКСИМУМ 5 СЛОВ в ответе. Пиши чепуху."
     }
     
     selected_role = role_instructions.get(role, role_instructions["finik"])
-    full_prompt = f"Answer ONLY in {lang}. Role: {selected_role}. User: {user_input}"
+    
+    # Инструкция для ИИ
+    full_prompt = f"STRICT: Answer ONLY in {lang}. Role context: {selected_role}. User query: {user_input}"
 
     try:
         response = model.generate_content(full_prompt)
         return jsonify({"answer": response.text if response.text else "..."})
     except Exception as e:
-        return jsonify({"answer": f"Ошибка: {str(e)}"})
+        # Если API выдаст ошибку, мы увидим её в чате
+        return jsonify({"answer": f"Ошибка (Gemini 2.5): {str(e)}"})
 
 @app.route('/')
 def index(): return render_template('index.html')
 
 @app.route('/avatar')
-def get_avatar(): return send_from_directory(app.root_path, 'ico.PNG')
+def get_avatar(): return send_from_directory(app.root_path, 'ico.jpg')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
