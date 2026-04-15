@@ -1,37 +1,22 @@
 import os
-import google.generativeai as genai
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from openai import OpenAI # Groq работает через библиотеку OpenAI
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
-# Настройка модели 2.5 Pro (актуальная стабильная в 2026)
-genai.configure(api_key=os.environ.get("GOOGLE_API_KEY"))
-
-# Отключаем фильтры безопасности, чтобы точки не заменяли ответ
-safety_settings = [
-    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-]
-
-# Вместо gemini-2.5-pro ставим 3.0-flash
-# 2.5 Flash — идеальный баланс: она не 404 и у неё конская квота
-model = genai.GenerativeModel(
-    model_name='gemini-2.5-flash', 
-    safety_settings=safety_settings
+# Настройка Groq
+client = OpenAI(
+    base_url="https://api.groq.com/openai/v1",
+    api_key=os.environ.get("GROQ_API_KEY")
 )
+
 @app.route('/ask', methods=['POST'])
 def ask():
     data = request.get_json(silent=True) or {}
     user_input = data.get("message") or ""
-    lang = "Russian" if (data.get("lang") or "ru") == "ru" else "English"
     role = data.get("role") or "finik"
-
-    if not user_input:
-        return jsonify({"answer": "А говорить кто будет?"})
 
     # Персонажи: Губка Боб и Патрик теперь официально в ударе
     role_instructions = {
@@ -46,25 +31,20 @@ def ask():
     full_prompt = f"STRICT: Answer ONLY in {lang}. Role context: {selected_role}. User: {user_input}"
 
     try:
-        response = model.generate_content(full_prompt)
-        
-        # Если текст есть — возвращаем, если нет — пишем причину, а не точки
-        if response.text:
-            return jsonify({"answer": response.text})
-        else:
-            return jsonify({"answer": "Google заблокировал ответ. Попробуй перефразировать!"})
-            
+        # Используем Llama 3 70B — она умная и очень быстрая
+        response = client.chat.completions.create(
+            model="llama3-70b-8192",
+            messages=[
+                {"role": "system", "content": role_instructions.get(role)},
+                {"role": "user", "content": user_input}
+            ]
+        )
+        return jsonify({"answer": response.choices[0].message.content})
     except Exception as e:
-        return jsonify({"answer": f"Ошибка (Gemini 2.5): {str(e)}"})
+        return jsonify({"answer": f"Ошибка системы: {str(e)}"})
 
 @app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/avatar')
-def get_avatar():
-    return send_from_directory(app.root_path, 'ico.jpg')
+def index(): return render_template('index.html')
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=5000)
