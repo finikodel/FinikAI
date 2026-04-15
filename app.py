@@ -17,8 +17,9 @@ safety_settings = [
     {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
 ]
 
+# Вместо gemini-2.5-pro ставим 3.0-flash
 model = genai.GenerativeModel(
-    model_name='gemini-2.5-pro',
+    model_name='gemini-3.0-flash', 
     safety_settings=safety_settings
 )
 
