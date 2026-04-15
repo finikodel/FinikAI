@@ -40,15 +40,17 @@ def ask():
     system_instruction = prompts.get(role, prompts["finik"])
 
     try:
-        # Используем DuckDuckGo AI. Модель 'gpt-4o-mini' обычно самая быстрая и умная.
+        # Новый способ вызова для последних версий библиотеки
         with DDGS() as ddgs:
             full_prompt = system_instruction + user_input
+            # Используем генератор и вытаскиваем результат
             results = ddgs.chat(full_prompt, model='gpt-4o-mini')
+            
+            # Если возвращается список (в некоторых версиях), берем текст
+            if isinstance(results, list):
+                return jsonify({"answer": results[0]})
             return jsonify({"answer": results})
             
     except Exception as e:
-        return jsonify({"answer": f"Ошибка связи: Попробуй еще раз через секунду. ({str(e)})"})
-
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+        # Выводим подробную ошибку, если что-то пойдет не так
+        return jsonify({"answer": f"Ошибка связи: {str(e)}"})
