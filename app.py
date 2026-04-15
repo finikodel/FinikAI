@@ -18,11 +18,11 @@ safety_settings = [
 ]
 
 # Вместо gemini-2.5-pro ставим 3.0-flash
+# 2.5 Flash — идеальный баланс: она не 404 и у неё конская квота
 model = genai.GenerativeModel(
-    model_name='gemini-3.0-flash', 
+    model_name='gemini-2.5-flash', 
     safety_settings=safety_settings
 )
-
 @app.route('/ask', methods=['POST'])
 def ask():
     data = request.get_json(silent=True) or {}
