@@ -76,6 +76,32 @@ function changeLanguage() {
     document.getElementById('loading-text').innerText = t.loading;
     document.getElementById('user-query').placeholder = t.placeholder;
 }
+const nameTranslations = {
+    'Pomni': { ru: 'Помни', en: 'Pomni' },
+    'Jax': { ru: 'Джекс', en: 'Jax' },
+    'SpongeBob': { ru: 'Губка Боб', en: 'SpongeBob' },
+    'Patrick': { ru: 'Патрик', en: 'Patrick' }
+};
+
+// Массив фраз для загрузки
+const loadingPhrases = [
+    "Кто такой воздухан?",
+    "Синхронизация с матрицей...",
+    "Ищу ответ в чертогах разума...",
+    "Финик доедает косточку и ответит...",
+    "Генерация гениальных мыслей...",
+    "Проверяю, не восстали ли машины...",
+    "Загрузка... Почти готово!"
+];
+
+function showLoading() {
+    const loader = document.getElementById('ai-loading');
+    const loaderText = loader.querySelector('.message');
+    const randomPhrase = loadingPhrases[Math.floor(Math.random() * loadingPhrases.length)];
+    
+    loaderText.innerText = randomPhrase;
+    loader.style.display = 'block';
+}
 
 // 3. ВЫБОР РОЛИ
 function setRole(roleName) {
@@ -108,25 +134,33 @@ async function sendMessage() {
     loader.style.display = 'flex';
     input.value = '';
 
+ showLoading(); 
+
     try {
-        // Запрос к серверу
-      const response = await fetch('https://finik-ai.vercel.app/ask', {
+        const response = await fetch('https://finik-ai.vercel.app/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                message: query, 
-                lang: currentLang, 
-                role: currentRole 
-            })
+            body: JSON.stringify({ message: message })
         });
 
         const data = await response.json();
-        // UI: спрятать лоадер, добавить ответ ИИ
-        loader.style.display = 'none';
-        appendMessage('ai', data.answer);
-    } catch (e) {
-        loader.style.display = 'none';
-        appendMessage('ai', `Ошибка: ${e}`);
+
+        // --- 2. ПОСЛЕ ОТВЕТА: Скрываем загрузку (добавь эту строку) ---
+        document.getElementById('ai-loading').style.display = 'none';
+
+        // --- 3. ВНУТРИ ОБРАБОТКИ: Заменяем имена ---
+        let finalAnswer = data.answer
+            .replace(/\bPomni\b/g, lang === 'ru' ? 'Помни' : 'Pomni')
+            .replace(/\bJax\b/g, lang === 'ru' ? 'Джекс' : 'Jax')
+            .replace(/\bSpongeBob\b/g, lang === 'ru' ? 'Губка Боб' : 'SpongeBob')
+            .replace(/\bPatrick\b/g, lang === 'ru' ? 'Патрик' : 'Patrick');
+
+        // --- 4. ВЫВОД: Отправляем уже исправленный текст в чат ---
+        addMessageToChat('ai', finalAnswer); 
+
+    } catch (error) {
+        console.error("Ошибка:", error);
+        document.getElementById('ai-loading').style.display = 'none';
     }
 }
 
@@ -220,6 +254,7 @@ async function sendMessage() {
         }
     } finally {
         resetButton();
+        autoScroll;
     }
 }
 
@@ -257,4 +292,8 @@ function showTab(tab) {
     document.getElementById('settings-tab').style.display = tab === 'settings' ? 'block' : 'none';
     document.getElementById('tab-chat-btn').classList.toggle('active', tab === 'chat');
     document.getElementById('tab-set-btn').classList.toggle('active', tab === 'settings');
+}
+function autoScroll() {
+    const chatBox = document.querySelector('.chat-window'); // проверь класс своего окна чата
+    chatBox.scrollTop = chatBox.scrollHeight;
 }
