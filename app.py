@@ -6,7 +6,7 @@ import google.generativeai as genai
 app = Flask(__name__)
 CORS(app)
 
-# Подхватываем ключ CLIENT_KEY из настроек Vercel (как на твоем скрине)
+# Берем ключ из настроек Vercel (CLIENT_KEY)
 API_KEY = os.environ.get("CLIENT_KEY", "AIzaSyBkdfyrFv3-j1L2aojIxEKmeNHpDuARzHo")
 genai.configure(api_key=API_KEY)
 
@@ -24,44 +24,44 @@ def index():
 
 @app.route('/ask', methods=['POST'])
 def ask():
-    # ИСПРАВЛЕНИЕ: Пытаемся взять сообщение и из JSON, и из обычной формы
+    # Универсальный прием данных (и JSON, и Form)
     data = request.get_json(silent=True) or {}
     user_input = data.get("message") or request.form.get("message")
-    
     lang = data.get("lang") or request.form.get("lang", "ru")
     role = data.get("role") or request.form.get("role", "finik")
-    file = request.files.get("file")
 
-    # Если сообщение РЕАЛЬНО пустое, тогда отдаем точки
-    if not user_input and not file:
+    if not user_input:
         return jsonify({"answer": "..."})
 
+    # Твои роли (Джекс, Помни и компания)
     prompts = {
-        "finik": f"You are FinikAI. Answer in {lang}. Be witty, ironic, use Reddit style. If user asks for image/link, provide them using Markdown. BE BRIEF.",
-        "pomni": f"You are Pomni. Answer in {lang}. Anxious, paranoid. SHORT sentences.",
-        "jax": f"You are Jax. Answer in {lang}. Mean, cynical prankster. VERY BRIEF.",
-        "spongebob": f"You are SpongeBob. Answer in {lang}. Energetic, naive. SHORT.",
-        "patrick": f"You are Patrick. Answer in {lang}. Confused, slow. Max 5 words."
+        "finik": f"You are FinikAI. Answer in {lang}. Be witty, ironic. Use Markdown.",
+        "pomni": f"You are Pomni. Answer in {lang}. Anxious, paranoid. SHORT.",
+        "jax": f"You are Jax. Answer in {lang}. Mean, cynical prankster. BRIEF.",
+        "spongebob": f"You are SpongeBob. Answer in {lang}. Energetic. SHORT.",
+        "patrick": f"You are Patrick. Answer in {lang}. Confused. Max 5 words."
     }
     
     system_prompt = prompts.get(role, prompts["finik"])
 
     try:
+        # Используем точное название модели
         model = genai.GenerativeModel(
             model_name='gemini-1.5-flash',
             system_instruction=system_prompt
         )
 
-        content = user_input if user_input else ""
-        if file:
-            content += f" (Пользователь прикрепил файл: {file.filename})"
-
-        response = model.generate_content(content)
+        response = model.generate_content(user_input)
         return jsonify({"answer": response.text})
         
     except Exception as e:
-        # Если ошибка в ключе или API, мы это увидим
-        return jsonify({"answer": f"Ошибка системы: {str(e)}"})
+        # Если 1.5 Flash вдруг закапризничает, попробуем Pro версию
+        try:
+            model_alt = genai.GenerativeModel('gemini-1.5-pro', system_instruction=system_prompt)
+            response = model_alt.generate_content(user_input)
+            return jsonify({"answer": response.text})
+        except:
+            return jsonify({"answer": f"Ошибка ИИ: {str(e)}"})
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
