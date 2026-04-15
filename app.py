@@ -6,8 +6,8 @@ import google.generativeai as genai
 app = Flask(__name__)
 CORS(app)
 
-# Используем твой ключ CLIENT_KEY из настроек Vercel
-API_KEY = os.environ.get("CLIENT_KEY", "AIzaSyBkdfyrFv3-j1L2aojIxEKmeNHpDuARzHo")
+# 1. Берем ключ именно по твоему названию из Vercel
+API_KEY = os.environ.get("GOOGLE_API_KEY")
 genai.configure(api_key=API_KEY)
 
 @app.route('/avatar')
@@ -24,6 +24,7 @@ def index():
 
 @app.route('/ask', methods=['POST'])
 def ask():
+    # Получаем данные (поддержка и JSON, и Form для твоего старого скрипта)
     data = request.get_json(silent=True) or {}
     user_input = data.get("message") or request.form.get("message")
     lang = data.get("lang") or request.form.get("lang", "ru")
@@ -32,33 +33,30 @@ def ask():
     if not user_input:
         return jsonify({"answer": "..."})
 
-    # Твои любимые роли
+    # Описания ролей (твои любимые персонажи)
     prompts = {
         "finik": f"You are FinikAI. Answer in {lang}. Be witty, ironic, Reddit style. Use Markdown.",
-        "pomni": f"You are Pomni. Answer in {lang}. Anxious, paranoid. SHORT.",
-        "jax": f"You are Jax. Answer in {lang}. Mean, cynical prankster. BRIEF.",
-        "spongebob": f"You are SpongeBob. Answer in {lang}. Energetic. SHORT.",
-        "patrick": f"You are Patrick. Answer in {lang}. Confused. Max 5 words."
+        "pomni": f"You are Pomni. Answer in {lang}. Anxious, paranoid. SHORT sentences.",
+        "jax": f"You are Jax. Answer in {lang}. Mean, cynical prankster. VERY BRIEF.",
+        "spongebob": f"You are SpongeBob. Answer in {lang}. Energetic, naive. SHORT.",
+        "patrick": f"You are Patrick. Answer in {lang}. Confused, slow. Max 5 words."
     }
     
     system_prompt = prompts.get(role, prompts["finik"])
 
-    # Список моделей на пробу (самая новая -> стабильная)
-    model_names = ['gemini-3-flash', 'gemini-3-pro', 'gemini-2.5-flash']
+    try:
+        # 2. Используем актуальную модель Gemini 3 Flash
+        model = genai.GenerativeModel(
+            model_name='gemini-3-flash',
+            system_instruction=system_prompt
+        )
 
-    for name in model_names:
-        try:
-            model = genai.GenerativeModel(
-                model_name=name,
-                system_instruction=system_prompt
-            )
-            response = model.generate_content(user_input)
-            return jsonify({"answer": response.text})
-        except Exception as e:
-            # Если это последняя модель в списке и она упала — пишем ошибку
-            if name == model_names[-1]:
-                return jsonify({"answer": f"Ошибка системы: {str(e)}"})
-            continue # Пробуем следующую модель из списка
+        response = model.generate_content(user_input)
+        return jsonify({"answer": response.text})
+        
+    except Exception as e:
+        # Если модель не найдена или ключ не подхватился, выводим понятную ошибку
+        return jsonify({"answer": f"Ошибка системы: {str(e)}"})
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
