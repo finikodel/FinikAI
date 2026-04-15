@@ -1,14 +1,14 @@
 import os
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from flask_cors import CORS
-from duckduckgo_search import DDGS
+from g4f.client import Client
 
 app = Flask(__name__)
 CORS(app)
 
 @app.route('/avatar')
 def get_avatar():
-    return send_from_directory(app.root_path, 'ico.png')
+    return send_from_directory(app.root_path, 'ico.jpg')
 
 @app.route('/icons/<path:filename>')
 def custom_static(filename):
@@ -22,8 +22,9 @@ def index():
 def ask():
     data = request.get_json(silent=True) or {}
     user_input = data.get("message") or request.form.get("message")
-    lang_name = "Russian" if (data.get("lang") or "ru") == "ru" else "English"
-    role = data.get("role") or request.form.get("role", "finik")
+    lang_code = data.get("lang") or "ru"
+    lang_name = "Russian" if lang_code == "ru" else "English"
+    role = data.get("role") or "finik"
 
     if not user_input:
         return jsonify({"answer": "..."})
@@ -40,20 +41,21 @@ def ask():
     full_prompt = f"STRICT RULE: Answer ONLY in {lang_name}. Role: {selected_role}. User: {user_input}"
 
     try:
-        from g4f.client import Client
+        # Client сам подбирает провайдера, обходя ERR_CHALLENGE
         client = Client()
-        
-        # Мы используем GPT-4o-mini, она самая быстрая и бесплатная
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": f"Instruction: Respond ONLY in {lang_name}. {selected_role}"},
+                {"role": "system", "content": f"STRICT: Answer ONLY in {lang_name}. {selected_role}"},
                 {"role": "user", "content": user_input}
             ]
         )
-        
         answer = response.choices[0].message.content
-        return jsonify({"answer": answer})
-                
+        return jsonify({"answer": answer if answer else "Финик задумался..."})
     except Exception as e:
-        return jsonify({"answer": f"Ошибка системы: Попробуй ещё раз. ({str(e)})"})
+        # Если всё совсем плохо, выводим ошибку, чтобы понять причину 500-й
+        return jsonify({"answer": f"Ошибка системы: {str(e)}"})
+
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
