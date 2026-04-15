@@ -1,10 +1,13 @@
 import os
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from flask_cors import CORS
-from duckduckgo_search import DDGS
+from g4f.client import Client
 
 app = Flask(__name__)
 CORS(app)
+
+# Теперь API_KEY нам не нужен, g4f работает бесплатно
+client = Client()
 
 @app.route('/avatar')
 def get_avatar():
@@ -28,29 +31,33 @@ def ask():
     if not user_input:
         return jsonify({"answer": "..."})
 
-    # Твои любимые роли (передаем их как инструкцию в начале сообщения)
     prompts = {
-        "finik": f"Instruction: You are FinikAI. Respond in {lang}. Be witty, ironic, Reddit style. Russian style and a lot of memes. Use Markdown. Text: ",
-        "pomni": f"Instruction: You are Pomni. Respond in {lang}. Anxious, paranoid. SHORT sentences. Text: ",
-        "jax": f"Instruction: You are Jax. Respond in {lang}. Mean, cynical prankster. VERY BRIEF. Text: ",
-        "spongebob": f"Instruction: You are SpongeBob. Respond in {lang}. Energetic, silly, very funny. SHORT. Text: ",
-        "patrick": f"Instruction: You are Patrick. Talk silly and be very stupid. Respond in {lang}. Confused, slow, stupid, funny. Max 5 words. Text: "
+        "finik": f"You are FinikAI. Answer in {lang}. Be witty, ironic, Reddit style. Use Markdown.",
+        "pomni": f"You are Pomni. Answer in {lang}. Anxious, paranoid. SHORT.",
+        "jax": f"You are Jax. Answer in {lang}. Mean, cynical prankster. BRIEF.",
+        "spongebob": f"You are SpongeBob. Answer in {lang}. Energetic. SHORT.",
+        "patrick": f"You are Patrick. Answer in {lang}. Confused. Max 5 words."
     }
-    
-    system_instruction = prompts.get(role, prompts["finik"])
+    system_prompt = prompts.get(role, prompts["finik"])
 
     try:
-        # Новый способ вызова для последних версий библиотеки
-        with DDGS() as ddgs:
-            full_prompt = system_instruction + user_input
-            # Используем генератор и вытаскиваем результат
-            results = ddgs.chat(full_prompt, model='gpt-4o-mini')
-            
-            # Если возвращается список (в некоторых версиях), берем текст
-            if isinstance(results, list):
-                return jsonify({"answer": results[0]})
-            return jsonify({"answer": results})
-            
+        # Используем g4f вместо Google GenAI
+        # Он сам выберет лучшего провайдера и модель (GPT-4 или аналоги)
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_input}
+            ]
+        )
+        
+        answer = response.choices[0].message.content
+        return jsonify({"answer": answer})
+        
     except Exception as e:
-        # Выводим подробную ошибку, если что-то пойдет не так
-        return jsonify({"answer": f"Ошибка связи: {str(e)}"})
+        return jsonify({"answer": f"Ошибка системы: {str(e)}"})
+
+if __name__ == '__main__':
+    # На Vercel порт берется из окружения
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
