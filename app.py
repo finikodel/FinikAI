@@ -40,18 +40,20 @@ def ask():
     full_prompt = f"STRICT RULE: Answer ONLY in {lang_name}. Role: {selected_role}. User: {user_input}"
 
     try:
-        # Прямой вызов через класс без контекстного менеджера (иногда помогает на Vercel)
-        ddgs = DDGS()
-        # Пробуем вызвать чат
-        response = ddgs.chat(full_prompt, model='gpt-4o-mini')
+        from g4f.client import Client
+        client = Client()
         
-        if response:
-            return jsonify({"answer": response})
-        return jsonify({"answer": "Утка не ответила. Попробуй еще раз!"})
+        # Мы используем GPT-4o-mini, она самая быстрая и бесплатная
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": f"Instruction: Respond ONLY in {lang_name}. {selected_role}"},
+                {"role": "user", "content": user_input}
+            ]
+        )
+        
+        answer = response.choices[0].message.content
+        return jsonify({"answer": answer})
                 
     except Exception as e:
-        # Если ОПЯТЬ ошибка атрибута, значит Vercel издевается. 
-        # Выведем версию библиотеки, чтобы понять, что он там наставил.
-        import duckduckgo_search
-        ver = duckduckgo_search.__version__
-        return jsonify({"answer": f"Ошибка (версия {ver}): {str(e)}"})
+        return jsonify({"answer": f"Ошибка системы: Попробуй ещё раз. ({str(e)})"})
