@@ -1,7 +1,7 @@
 import os
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from flask_cors import CORS
-import g4f
+from duckduckgo_search import DDGS
 
 app = Flask(__name__)
 CORS(app)
@@ -22,46 +22,42 @@ def index():
 def ask():
     data = request.get_json(silent=True) or {}
     user_input = data.get("message") or request.form.get("message")
-    lang = data.get("lang") or request.form.get("lang", "ru")
+    lang_name = "Russian" if (data.get("lang") or "ru") == "ru" else "English"
     role = data.get("role") or request.form.get("role", "finik")
 
     if not user_input:
         return jsonify({"answer": "..."})
 
-    prompts = {
-        "finik": f"You are FinikAI. Answer in {lang}. Be witty, ironic, Reddit style. Use Markdown.",
-        "pomni": f"You are Pomni. Answer in {lang}. Anxious, paranoid. SHORT.",
-        "jax": f"You are Jax. Answer in {lang}. Mean, cynical prankster. BRIEF.",
-        "spongebob": f"You are SpongeBob. Answer in {lang}. Energetic. SHORT.",
-        "patrick": f"You are Patrick. Answer in {lang}. Confused. Max 5 words."
+    # Улучшенные промпты с жестким указанием языка
+    role_instructions = {
+        "finik": "You are FinikAI, a witty and slightly ironic AI assistant. Your style is a mix of Reddit humor and helpful expert and as Russian funny guy. Use Markdown.",
+        "pomni": "You are Pomni from The Amazing Digital Circus. You are extremely anxious, paranoid, and confused. Use short, shaky sentences.",
+        "jax": "You are Jax from The Amazing Digital Circus. You are a cynical, mean prankster who doesn't care about others. Keep it very brief and mocking.",
+        "spongebob": "You are SpongeBob SquarePants. You are incredibly energetic, optimistic, funny, little bit dumb and happy! Use exclamation marks!",
+        "patrick": "You are Patrick Star. You are slow, stupid, little bit confused, funny and often forget what you were talking about. Maximum 5-7 words per answer."
     }
-    system_prompt = prompts.get(role, prompts["finik"])
+    
+    selected_role = role_instructions.get(role, role_instructions["finik"])
+    
+    # Собираем "Супер-Промпт"
+    full_prompt = (
+        f"CRITICAL INSTRUCTION: You must respond ONLY in {lang_name}. "
+        f"Your personality: {selected_role} "
+        f"User's message: {user_input}"
+    )
 
     try:
-        # Список провайдеров, которые реже всего "китайничают"
-        # Мы пробуем их по очереди
-        response = g4f.ChatCompletion.create(
-            model=g4f.models.gpt_4o, # gpt_4o сейчас самая стабильная
-            messages=[
-                {"role": "system", "content": system_prompt + " ВАЖНО: Отвечай ТОЛЬКО на выбранном языке пользователя!"},
-                {"role": "user", "content": user_input}
-            ],
-            # Явно указываем игнорировать проблемных провайдеров, если они будут лезть
-            ignore_working_providers=False, 
-        )
-        
-        if not response:
-             return jsonify({"answer": "Финик задумался... Попробуй еще раз."})
-
-        return jsonify({"answer": response})
-        
+        with DDGS() as ddgs:
+            # Используем gpt-4o-mini — она в 2026 году самая стабильная в Duck.ai
+            response = ddgs.chat(full_prompt, model='gpt-4o-mini')
+            
+            if response:
+                return jsonify({"answer": response})
+            return jsonify({"answer": "Ошибка: Пустой ответ от ИИ."})
+                
     except Exception as e:
-        # Если GPT-4o не сработал, пробуем самый простой и быстрый вариант
-        try:
-            response = g4f.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": f"Answer in {lang}: {user_input}"}],
-            )
-            return jsonify({"answer": response})
-        except:
-            return jsonify({"answer": f"Ошибка системы: {str(e)}"})
+        return jsonify({"answer": f"Ошибка связи (DuckDuckGo): {str(e)}"})
+
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
