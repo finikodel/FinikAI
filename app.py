@@ -1,13 +1,10 @@
 import os
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from flask_cors import CORS
-from g4f.client import Client
+import g4f
 
 app = Flask(__name__)
 CORS(app)
-
-# Теперь API_KEY нам не нужен, g4f работает бесплатно
-client = Client()
 
 @app.route('/avatar')
 def get_avatar():
@@ -41,23 +38,28 @@ def ask():
     system_prompt = prompts.get(role, prompts["finik"])
 
     try:
-        # Используем g4f вместо Google GenAI
-        # Он сам выберет лучшего провайдера и модель (GPT-4 или аналоги)
-        response = client.chat.completions.create(
-            model="gpt-4o",
+        # Используем прямой вызов без создания Client
+        # Это исключает ошибку "Add a api_key"
+        response = g4f.ChatCompletion.create(
+            model=g4f.models.gpt_4, # Можно попробовать gpt_4o или оставить gpt_4
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_input}
-            ]
+            ],
         )
         
-        answer = response.choices[0].message.content
-        return jsonify({"answer": answer})
+        # Если ответ пустой, пробуем еще раз с другой моделью автоматически
+        if not response:
+             response = g4f.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": system_prompt + " " + user_input}],
+            )
+
+        return jsonify({"answer": response})
         
     except Exception as e:
         return jsonify({"answer": f"Ошибка системы: {str(e)}"})
 
 if __name__ == '__main__':
-    # На Vercel порт берется из окружения
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
