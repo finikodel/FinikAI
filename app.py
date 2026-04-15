@@ -1,43 +1,69 @@
 import os
-from flask import Flask, request, jsonify, send_from_directory
-from flask_cors import CORS
+from flask import Flask, render_template, request, jsonify, send_from_directory
 import google.generativeai as genai
 
-# Настраиваем Flask так, чтобы он считал корень папки местом для статики
-app = Flask(__name__, static_folder='.', static_url_path='')
-CORS(app)
+app = Flask(__name__)
+UPLOAD_FOLDER = 'uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Настройка API Gemini (DuckDuckGo замена)
+# --- НАСТРОЙКА GEMINI ---
 API_KEY = os.environ.get("GOOGLE_API_KEY", "AIzaSyBkdfyrFv3-j1L2aojIxEKmeNHpDuARzHo")
 genai.configure(api_key=API_KEY)
 
-SYSTEM_PROMPT = "Ты — FinikAI от Finikodel. Дружелюбный, любишь анимацию и игры. Имена персонажей: Pomni, Jax, SpongeBob, Patrick."
-model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=SYSTEM_PROMPT)
+@app.route('/avatar')
+def get_avatar():
+    return send_from_directory(app.root_path, 'ico.jpg')
 
-# 1. Отдаем главную страницу
+@app.route('/icons/<path:filename>')
+def custom_static(filename):
+    return send_from_directory(os.path.join(app.root_path, 'icons'), filename)
+
 @app.route('/')
 def index():
-    return app.send_static_file('index.html')
+    return render_template('index.html')
 
-# 2. МАГИЯ: Отдаем CSS, JS и картинки автоматически
-@app.route('/<path:path>')
-def send_static(path):
-    return send_from_directory('.', path)
-
-# 3. Обработка ИИ-запросов
 @app.route('/ask', methods=['POST'])
 def ask():
+    # Твои старые добрые параметры из FormData
+    user_input = request.form.get("message")
+    lang = request.form.get("lang", "ru")
+    role = request.form.get("role", "finik")
+    file = request.files.get("file")
+
+    if not user_input and not file:
+        return jsonify({"answer": "..."})
+
+    # Описание ролей (сохранил твою логику)
+    prompts = {
+        "finik": f"You are FinikAI. Answer in {lang}. Be witty, ironic, use Reddit style. If user asks for image/link, provide them using Markdown. BE BRIEF.",
+        "pomni": f"You are Pomni. Answer in {lang}. Anxious, paranoid. SHORT sentences.",
+        "jax": f"You are Jax. Answer in {lang}. Mean, cynical prankster. VERY BRIEF.",
+        "spongebob": f"You are SpongeBob. Answer in {lang}. Energetic, naive. SHORT.",
+        "patrick": f"You are Patrick. Answer in {lang}. Confused, slow. Max 5 words."
+    }
+    
+    system_prompt = prompts.get(role, prompts["finik"])
+
     try:
-        data = request.json
-        user_message = data.get("message")
-        if not user_message:
-            return jsonify({"error": "No message"}), 400
+        # Инициализируем модель с нужной ролью
+        model = genai.GenerativeModel(
+            model_name='gemini-1.5-flash',
+            system_instruction=system_prompt
+        )
 
-        chat = model.start_chat(history=[])
-        response = chat.send_message(user_message)
+        content = user_input if user_input else ""
+        if file:
+            content += f" (Пользователь прикрепил файл: {file.filename})"
+
+        # Генерируем ответ
+        response = model.generate_content(content)
+        
         return jsonify({"answer": response.text})
+        
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"answer": f"Ошибка Gemini: {str(e)}"})
 
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+if __name__ == '__main__':
+    # На Vercel порт подхватится автоматически, для локала оставил 5000
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
