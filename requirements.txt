@@ -1,4 +1,3 @@
 flask
 flask-cors
-g4f>=0.3.5.7
-curl_cffi
+duckduckgo-search==6.3.0
