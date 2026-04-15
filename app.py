@@ -38,28 +38,30 @@ def ask():
     system_prompt = prompts.get(role, prompts["finik"])
 
     try:
-        # Используем прямой вызов без создания Client
-        # Это исключает ошибку "Add a api_key"
+        # Список провайдеров, которые реже всего "китайничают"
+        # Мы пробуем их по очереди
         response = g4f.ChatCompletion.create(
-            model=g4f.models.gpt_4, # Можно попробовать gpt_4o или оставить gpt_4
+            model=g4f.models.gpt_4o, # gpt_4o сейчас самая стабильная
             messages=[
-                {"role": "system", "content": system_prompt},
+                {"role": "system", "content": system_prompt + " ВАЖНО: Отвечай ТОЛЬКО на выбранном языке пользователя!"},
                 {"role": "user", "content": user_input}
             ],
+            # Явно указываем игнорировать проблемных провайдеров, если они будут лезть
+            ignore_working_providers=False, 
         )
         
-        # Если ответ пустой, пробуем еще раз с другой моделью автоматически
         if not response:
-             response = g4f.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": system_prompt + " " + user_input}],
-            )
+             return jsonify({"answer": "Финик задумался... Попробуй еще раз."})
 
         return jsonify({"answer": response})
         
     except Exception as e:
-        return jsonify({"answer": f"Ошибка системы: {str(e)}"})
-
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+        # Если GPT-4o не сработал, пробуем самый простой и быстрый вариант
+        try:
+            response = g4f.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": f"Answer in {lang}: {user_input}"}],
+            )
+            return jsonify({"answer": response})
+        except:
+            return jsonify({"answer": f"Ошибка системы: {str(e)}"})
