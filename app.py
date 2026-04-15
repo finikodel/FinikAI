@@ -1,10 +1,13 @@
 import os
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from flask_cors import CORS
-from g4f.client import Client
+import g4f
 
 app = Flask(__name__)
 CORS(app)
+
+# Настройка для работы на Vercel (отключаем запись логов на диск)
+g4f.debug.logging = False
 
 @app.route('/avatar')
 def get_avatar():
@@ -22,8 +25,7 @@ def index():
 def ask():
     data = request.get_json(silent=True) or {}
     user_input = data.get("message") or request.form.get("message")
-    lang_code = data.get("lang") or "ru"
-    lang_name = "Russian" if lang_code == "ru" else "English"
+    lang_name = "Russian" if (data.get("lang") or "ru") == "ru" else "English"
     role = data.get("role") or "finik"
 
     if not user_input:
@@ -38,23 +40,20 @@ def ask():
     }
     
     selected_role = role_instructions.get(role, role_instructions["finik"])
-    full_prompt = f"STRICT RULE: Answer ONLY in {lang_name}. Role: {selected_role}. User: {user_input}"
 
     try:
-        # Client сам подбирает провайдера, обходя ERR_CHALLENGE
-        client = Client()
-        response = client.chat.completions.create(
+        # Прямой вызов через ChatCompletion без создания клиента (чтобы не трогать диск)
+        response = g4f.ChatCompletion.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": f"STRICT: Answer ONLY in {lang_name}. {selected_role}"},
                 {"role": "user", "content": user_input}
             ]
         )
-        answer = response.choices[0].message.content
-        return jsonify({"answer": answer if answer else "Финик задумался..."})
+        
+        return jsonify({"answer": response})
     except Exception as e:
-        # Если всё совсем плохо, выводим ошибку, чтобы понять причину 500-й
-        return jsonify({"answer": f"Ошибка системы: {str(e)}"})
+        return jsonify({"answer": f"Ошибка (Vercel Fix): {str(e)}"})
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
