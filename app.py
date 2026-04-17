@@ -1,6 +1,6 @@
 import os
 from openai import OpenAI
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -12,6 +12,10 @@ client = OpenAI(
     base_url="https://api.groq.com/openai/v1",
     api_key=os.environ.get("GROQ_API_KEY")
 )
+# Это и есть та самая «фигня», которая заставит иконки работать
+@app.route('/icons/<path:filename>')
+def serve_icons(filename):
+    return send_from_directory('icons', filename)
 
 @app.route('/ask', methods=['POST'])
 def ask():
