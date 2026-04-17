@@ -1,12 +1,13 @@
 import os
-from openai import OpenAI # Groq работает через библиотеку OpenAI
+from openai import OpenAI
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
-# Настройка Groq
+# Настройка Groq через библиотеку OpenAI
+# Ключ GROQ_API_KEY должен быть прописан в Environment Variables на Vercel
 client = OpenAI(
     base_url="https://api.groq.com/openai/v1",
     api_key=os.environ.get("GROQ_API_KEY")
@@ -17,8 +18,10 @@ def ask():
     data = request.get_json(silent=True) or {}
     user_input = data.get("message") or ""
     role = data.get("role") or "finik"
+    # Определяем язык, чтобы промпт не ломался
+    lang = "Russian" if (data.get("lang") or "ru") == "ru" else "English"
 
-    # Персонажи: Губка Боб и Патрик теперь официально в ударе
+    # Твои каноничные роли без сокращений
     role_instructions = {
         "finik": "Ты — ФиникAI, ироничный ассистент. Стиль: Reddit.",
         "pomni": "Ты — Помни. У тебя паника, ты в Цифровом Цирке. Трясущиеся короткие фразы.",
@@ -28,23 +31,27 @@ def ask():
     }
     
     selected_role = role_instructions.get(role, role_instructions["finik"])
+    
+    # Формируем четкую инструкцию для модели
     full_prompt = f"STRICT: Answer ONLY in {lang}. Role context: {selected_role}. User: {user_input}"
 
     try:
-        # Используем Llama 3 70B — она умная и очень быстрая
+        # Используем Llama 3 70B через Groq (летает быстрее любого Google AI)
         response = client.chat.completions.create(
             model="llama3-70b-8192",
             messages=[
-                {"role": "system", "content": role_instructions.get(role)},
+                {"role": "system", "content": selected_role},
                 {"role": "user", "content": user_input}
             ]
         )
         return jsonify({"answer": response.choices[0].message.content})
     except Exception as e:
-        return jsonify({"answer": f"Ошибка системы: {str(e)}"})
+        # Если Groq выдаст ошибку, ты увидишь её причину прямо в чате, а не 500 ошибку
+        return jsonify({"answer": f"Блин, затык: {str(e)}"})
 
 @app.route('/')
-def index(): return render_template('index.html')
+def index(): 
+    return render_template('index.html')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
