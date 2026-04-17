@@ -35,18 +35,20 @@ def ask():
     # Формируем четкую инструкцию для модели
     full_prompt = f"STRICT: Answer ONLY in {lang}. Role context: {selected_role}. User: {user_input}"
 
+    selected_role = role_instructions.get(role, role_instructions["finik"])
+
     try:
-        # Используем Llama 3 70B через Groq (летает быстрее любого Google AI)
+        # ЗАМЕНЯЕМ МОДЕЛЬ НА ТУ, ЧТО ТОЧНО РАБОТАЕТ В 2026:
         response = client.chat.completions.create(
-            model="llama3-70b-8192",
+            model="llama-3.3-70b-versatile", # Актуальная замена старой 70b модели
             messages=[
-                {"role": "system", "content": selected_role},
+                {"role": "system", "content": f"STRICT: Answer ONLY in {lang}. Role: {selected_role}"},
                 {"role": "user", "content": user_input}
             ]
         )
         return jsonify({"answer": response.choices[0].message.content})
     except Exception as e:
-        # Если Groq выдаст ошибку, ты увидишь её причину прямо в чате, а не 500 ошибку
+        # Если Groq снова выдаст ошибку, мы увидим её тут
         return jsonify({"answer": f"Блин, затык: {str(e)}"})
 
 @app.route('/')
