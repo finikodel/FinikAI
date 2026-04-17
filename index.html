@@ -18,7 +18,12 @@
     <div class="container">
         <aside class="sidebar">
             <h2 class="logo">FinikAI</h2>
-            
+            <div class="saved-chats-container">
+    <h3>💾 Сохраненные чаты</h3>
+    <div id="chats-list">
+        </div>
+    <button onclick="saveCurrentChat()" style="width: 100%; margin-top: 10px;">💾 Сохранить этот чат</button>
+</div>
             <div class="nav-tabs">
                 <button onclick="showTab('chat')" class="tab-btn active" id="tab-chat-btn">Чат</button>
                 <button onclick="showTab('settings')" class="tab-btn" id="tab-set-btn">Настройки</button>

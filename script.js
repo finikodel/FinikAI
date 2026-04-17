@@ -297,3 +297,37 @@ function autoScroll() {
     const chatBox = document.querySelector('.chat-window'); // проверь класс своего окна чата
     chatBox.scrollTop = chatBox.scrollHeight;
 }
+// Функция сохранения чата
+function saveCurrentChat() {
+    const chatData = {
+        id: Date.now(),
+        role: currentRole, // Твоя переменная текущей роли
+        messages: document.getElementById('chat-box').innerHTML, // Берем весь HTML чата
+        title: "Чат " + new Date().toLocaleTimeString()
+    };
+
+    let saved = JSON.parse(localStorage.getItem('finik_chats') || '[]');
+    saved.push(chatData);
+    localStorage.setItem('finik_chats', JSON.stringify(saved));
+    renderChatsList();
+}
+
+// Функция отображения списка
+function renderChatsList() {
+    const list = document.getElementById('chats-list');
+    const saved = JSON.parse(localStorage.getItem('finik_chats') || '[]');
+    list.innerHTML = '';
+    
+    saved.forEach(chat => {
+        const btn = document.createElement('button');
+        btn.innerText = chat.title;
+        btn.onclick = () => {
+            document.getElementById('chat-box').innerHTML = chat.messages;
+            setRole(chat.role); // Возвращаем роль этого чата
+        };
+        list.appendChild(btn);
+    });
+}
+
+// Вызывай при загрузке страницы
+window.onload = renderChatsList;

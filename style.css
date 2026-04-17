@@ -229,3 +229,35 @@ body {
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
 }
+/* Адаптация для телефонов */
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        left: -100%; /* Прячем меню */
+        z-index: 1000;
+        transition: 0.3s;
+        width: 80%;
+        height: 100%;
+    }
+
+    .sidebar.active {
+        left: 0; /* Выезжает при нажатии */
+    }
+
+    .mobile-menu-btn {
+        display: block !important; /* Кнопка открытия */
+    }
+}
+
+.mobile-menu-btn {
+    display: none;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: #333;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    z-index: 1001;
+}
