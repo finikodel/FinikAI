@@ -298,36 +298,66 @@ function autoScroll() {
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 // Функция сохранения чата
-function saveCurrentChat() {
-    const chatData = {
-        id: Date.now(),
-        role: currentRole, // Твоя переменная текущей роли
-        messages: document.getElementById('chat-box').innerHTML, // Берем весь HTML чата
-        title: "Чат " + new Date().toLocaleTimeString()
-    };
 
-    let saved = JSON.parse(localStorage.getItem('finik_chats') || '[]');
-    saved.push(chatData);
-    localStorage.setItem('finik_chats', JSON.stringify(saved));
-    renderChatsList();
-}
 
 // Функция отображения списка
-function renderChatsList() {
-    const list = document.getElementById('chats-list');
-    const saved = JSON.parse(localStorage.getItem('finik_chats') || '[]');
-    list.innerHTML = '';
+// Функция для кнопки "Сохранить"
+function saveCurrentChat() {
+    const chatBox = document.getElementById('chat-box'); // Убедись, что ID твоего окна чата именно такой!
+    if (!chatBox || chatBox.innerHTML.trim() === "") return alert("Чат пуст!");
+
+    const chatData = {
+        id: Date.now(),
+        title: "Разговор " + new Date().toLocaleTimeString(),
+        html: chatBox.innerHTML,
+        history: typeof chatHistory !== 'undefined' ? chatHistory : [], // Сохраняем историю для ИИ
+        role: currentRole // Сохраняем, за кого играли
+    };
+
+    let saved = JSON.parse(localStorage.getItem('finik_vault') || '[]');
+    saved.push(chatData);
+    localStorage.setItem('finik_vault', JSON.stringify(saved));
     
-    saved.forEach(chat => {
+    renderSavedList();
+    alert("Чат упакован в архив! 📦");
+}
+
+// Функция для отрисовки списка кнопок
+function renderSavedList() {
+    const list = document.getElementById('saved-chats-list');
+    const saved = JSON.parse(localStorage.getItem('finik_vault') || '[]');
+    list.innerHTML = '';
+
+    saved.forEach((chat, index) => {
         const btn = document.createElement('button');
-        btn.innerText = chat.title;
-        btn.onclick = () => {
-            document.getElementById('chat-box').innerHTML = chat.messages;
-            setRole(chat.role); // Возвращаем роль этого чата
-        };
+        btn.className = 'role-btn'; // Используем твои стили кнопок
+        btn.style.fontSize = '12px';
+        btn.innerHTML = `<span>${chat.title}</span> <small style="color:red" onclick="deleteChat(${index}, event)">✖</small>`;
+        
+        btn.onclick = () => loadSavedChat(chat);
         list.appendChild(btn);
     });
 }
+
+// Загрузка чата
+function loadSavedChat(chat) {
+    document.getElementById('chat-box').innerHTML = chat.html;
+    if (typeof chatHistory !== 'undefined') chatHistory = chat.history;
+    setRole(chat.role);
+    alert("Чат восстановлен!");
+}
+
+// Удаление чата
+function deleteChat(index, e) {
+    e.stopPropagation(); // Чтобы не сработала загрузка при нажатии на крестик
+    let saved = JSON.parse(localStorage.getItem('finik_vault') || '[]');
+    saved.splice(index, 1);
+    localStorage.setItem('finik_vault', JSON.stringify(saved));
+    renderSavedList();
+}
+
+// Вызываем при старте страницы
+document.addEventListener('DOMContentLoaded', renderSavedList);
 
 // Вызывай при загрузке страницы
 window.onload = renderChatsList;
