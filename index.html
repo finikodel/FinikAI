@@ -2,7 +2,6 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FinikAI</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
@@ -18,20 +17,21 @@
     <div class="container">
         <aside class="sidebar">
             <h2 class="logo">FinikAI</h2>
-            <div class="saved-chats-container">
-    <h3>💾 Сохраненные чаты</h3>
-    <div id="chats-list">
-        </div>
-    <button onclick="saveCurrentChat()" style="width: 100%; margin-top: 10px;">💾 Сохранить этот чат</button>
-</div>
+            
             <div class="nav-tabs">
                 <button onclick="showTab('chat')" class="tab-btn active" id="tab-chat-btn">Чат</button>
                 <button onclick="showTab('settings')" class="tab-btn" id="tab-set-btn">Настройки</button>
             </div>
 
             <div id="chat-tab">
-                <button id="new-chat" onclick="setRole('finik')">+ Новый чат</button>
+                <button id="new-chat" onclick="createNewChat()">+ Новый чат</button>
                 
+                <div class="saved-chats-section">
+                    <h3 class="section-title">💾 Мои истории</h3>
+                    <div id="chats-list">
+                        </div>
+                </div>
+
                 <div class="roles-toggle" onclick="toggleRoles()">
                     <span id="label-roles">🎭 Ролевые разговоры</span>
                     <span id="toggle-arrow">▼</span>
@@ -39,21 +39,14 @@
 
                 <div id="roles-container" style="display: none;">
                     <div class="roles-grid">
-                        <button class="role-btn" onclick="setRole('pomni')"><img src="/icons/pom.png"><span>Pomni</span></button>
-                        <button class="role-btn" onclick="setRole('jax')"><img src="/icons/jax.png"><span>Jax</span></button>
-                        <button class="role-btn" onclick="setRole('spongebob')"><img src="/icons/bob.png"><span>Bob</span></button>
-                        <button class="role-btn" onclick="setRole('patrick')"><img src="/icons/pat.png"><span>Pat</span></button>
+                        <button class="role-btn" onclick="setRole('pomni')"><img src="/icons/pom.png" alt="Pomni"><span>Pomni</span></button>
+                        <button class="role-btn" onclick="setRole('jax')"><img src="/icons/jax.png" alt="Jax"><span>Jax</span></button>
+                        <button class="role-btn" onclick="setRole('spongebob')"><img src="/icons/bob.png" alt="Bob"><span>Bob</span></button>
+                        <button class="role-btn" onclick="setRole('patrick')"><img src="/icons/pat.png" alt="Pat"><span>Pat</span></button>
                     </div>
                 </div>
             </div>
-            <div class="save-section" style="margin-top: 20px; border-top: 1px solid #444; padding-top: 10px;">
-    <button onclick="saveCurrentChat()" style="width: 100%; background: #28a745; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; margin-bottom: 10px;">💾 Сохранить этот чат</button>
-    
-    <h3 style="font-size: 14px; color: #888; margin-bottom: 5px;">Мои истории:</h3>
-    <div id="saved-chats-list" style="display: flex; flex-direction: column; gap: 5px;">
-        </div>
-</div>
-</div>
+
             <div id="settings-tab" style="display: none;">
                 <div class="setting-item">
                     <label id="label-lang" for="lang-select">Язык:</label>
@@ -70,6 +63,8 @@
                     <p>Страна: 🇷🇺 Россия</p>
                 </div>
             </div>
+            
+            <button class="save-global-btn" onclick="saveCurrentChat()">💾 Сохранить прогресс</button>
         </aside>
 
         <main class="chat-window">
@@ -91,7 +86,11 @@
                         <input type="text" id="user-query" placeholder="Спроси у FinikAI..." onkeydown="if(event.key==='Enter') handleAction()">
                         
                         <button id="action-btn" class="send-mode" onclick="handleAction()">
-                            <div id="btn-icon"></div>
+                            <div id="btn-icon">
+                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px;">
+                                    <path d="M22 2L2 8.66L11.5 12.5M22 2L15.34 22L11.5 12.5M22 2L11.5 12.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
                         </button>
                     </div>
                     <div id="file-status" style="font-size: 11px; color: #4caf50; margin: 5px 0 0 45px; height: 14px;"></div>
@@ -101,6 +100,19 @@
             </div>
         </main>
     </div>
+
+    <template id="code-block-template">
+        <div class="code-container">
+            <div class="code-header">
+                <span class="code-lang">python</span>
+                <button class="copy-btn" onclick="copyCode(this)">Копировать</button>
+            </div>
+            <div class="code-content">
+                <pre><code></code></pre>
+            </div>
+        </div>
+    </template>
+
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
