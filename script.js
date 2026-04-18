@@ -302,62 +302,79 @@ function autoScroll() {
 
 // Функция отображения списка
 // Функция для кнопки "Сохранить"
-function saveCurrentChat() {
-    const chatBox = document.getElementById('chat-box'); // Убедись, что ID твоего окна чата именно такой!
-    if (!chatBox || chatBox.innerHTML.trim() === "") return alert("Чат пуст!");
+// --- ФУНКЦИИ ДЛЯ РАБОТЫ С АРХИВОМ ЧАТОВ ---
 
-    const chatData = {
+// 1. Сохранение текущего чата
+function saveCurrentChat() {
+    const messagesContainer = document.getElementById('messages');
+    
+    // Проверка: если в чате только приветствие, не сохраняем
+    if (messagesContainer.children.length <= 1) {
+        alert("Чат пуст, сохранять нечего!");
+        return;
+    }
+
+    const savedChats = JSON.parse(localStorage.getItem('finik_vault') || '[]');
+    
+    const newChat = {
         id: Date.now(),
-        title: "Разговор " + new Date().toLocaleTimeString(),
-        html: chatBox.innerHTML,
-        history: typeof chatHistory !== 'undefined' ? chatHistory : [], // Сохраняем историю для ИИ
-        role: currentRole // Сохраняем, за кого играли
+        title: "Чат-" + (savedChats.length + 1),
+        content: messagesContainer.innerHTML,
+        role: currentRole // сохраняем текущую роль
     };
 
-    let saved = JSON.parse(localStorage.getItem('finik_vault') || '[]');
-    saved.push(chatData);
-    localStorage.setItem('finik_vault', JSON.stringify(saved));
+    savedChats.push(newChat);
+    localStorage.setItem('finik_vault', JSON.stringify(savedChats));
     
-    renderSavedList();
-    alert("Чат упакован в архив! 📦");
+    renderSavedList(); // Обновляем список в боковой панели
+    alert("Чат сохранен как " + newChat.title);
 }
 
-// Функция для отрисовки списка кнопок
+// 2. Отрисовка списка в боковой панели
 function renderSavedList() {
-    const list = document.getElementById('saved-chats-list');
-    const saved = JSON.parse(localStorage.getItem('finik_vault') || '[]');
-    list.innerHTML = '';
+    const listContainer = document.getElementById('chats-list');
+    if (!listContainer) return;
 
-    saved.forEach((chat, index) => {
-        const btn = document.createElement('button');
-        btn.className = 'role-btn'; // Используем твои стили кнопок
-        btn.style.fontSize = '12px';
-        btn.innerHTML = `<span>${chat.title}</span> <small style="color:red" onclick="deleteChat(${index}, event)">✖</small>`;
-        
-        btn.onclick = () => loadSavedChat(chat);
-        list.appendChild(btn);
+    const savedChats = JSON.parse(localStorage.getItem('finik_vault') || '[]');
+    listContainer.innerHTML = ''; // Очищаем старый список
+
+    savedChats.forEach((chat, index) => {
+        const chatElement = document.createElement('div');
+        chatElement.className = 'chat-item';
+        chatElement.innerHTML = `
+            <span onclick="loadSavedChat(${chat.id})">${chat.title}</span>
+            <div class="delete-chat-icon" onclick="deleteChat(${index}, event)">✖</div>
+        `;
+        listContainer.appendChild(chatElement);
     });
 }
 
-// Загрузка чата
-function loadSavedChat(chat) {
-    document.getElementById('chat-box').innerHTML = chat.html;
-    if (typeof chatHistory !== 'undefined') chatHistory = chat.history;
-    setRole(chat.role);
-    alert("Чат восстановлен!");
+// 3. Загрузка чата из памяти
+function loadSavedChat(id) {
+    const savedChats = JSON.parse(localStorage.getItem('finik_vault') || '[]');
+    const targetChat = savedChats.find(c => c.id === id);
+    
+    if (targetChat) {
+        document.getElementById('messages').innerHTML = targetChat.content;
+        currentRole = targetChat.role;
+        // Если есть функция подсветки ролей, можно вызвать её тут
+        alert("Загружен " + targetChat.title);
+    }
 }
 
-// Удаление чата
-function deleteChat(index, e) {
-    e.stopPropagation(); // Чтобы не сработала загрузка при нажатии на крестик
-    let saved = JSON.parse(localStorage.getItem('finik_vault') || '[]');
-    saved.splice(index, 1);
-    localStorage.setItem('finik_vault', JSON.stringify(saved));
+// 4. Удаление чата
+function deleteChat(index, event) {
+    event.stopPropagation(); // Чтобы не сработала загрузка чата
+    let savedChats = JSON.parse(localStorage.getItem('finik_vault') || '[]');
+    savedChats.splice(index, 1);
+    localStorage.setItem('finik_vault', JSON.stringify(savedChats));
     renderSavedList();
 }
 
-// Вызываем при старте страницы
+// 5. Запуск отрисовки при загрузке страницы
+// Добавь этот вызов в свою функцию window.onload или просто в конец файла:
 document.addEventListener('DOMContentLoaded', renderSavedList);
+
 
 // Вызывай при загрузке страницы
 window.onload = renderChatsList;

@@ -31,6 +31,15 @@
                     <div id="chats-list">
                         </div>
                 </div>
+                <button id="save-chat-btn" onclick="saveCurrentChat()" style="width: 100%; margin-bottom: 10px; background: #4caf50; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer;">
+    💾 Сохранить этот чат
+</button>
+
+<div class="saved-chats-container">
+    <h3 style="font-size: 14px; color: #888; margin: 15px 0 10px 5px;">История сохранений:</h3>
+    <div id="chats-list">
+        </div>
+</div>
 
                 <div class="roles-toggle" onclick="toggleRoles()">
                     <span id="label-roles">🎭 Ролевые разговоры</span>
@@ -64,8 +73,7 @@
                 </div>
             </div>
             
-            <button class="save-global-btn" onclick="saveCurrentChat()">💾 Сохранить прогресс</button>
-        </aside>
+         
 
         <main class="chat-window">
             <div id="messages"></div>
